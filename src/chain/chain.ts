@@ -21,7 +21,7 @@ export class Chain < T > {
     }
 
     get isValid(): boolean {
-        return Chain.verifyBlockChein(this.blocks, this.difficulty);
+        return Chain.verifyBlockChain(this.blocks, this.difficulty);
     }
 
     canAdd(block): boolean {
@@ -43,8 +43,8 @@ export class Chain < T > {
         return block;
     }
 
-    replaceChain(blockList): void {
-        if (this.blocks.length >= blockList.length) return;
+    replaceChain(blockList): boolean {
+        if (this.blocks.length >= blockList.length) return false;
 
         const blocks = blockList.map(block => new Block(
             block.id,
@@ -54,12 +54,15 @@ export class Chain < T > {
             block.proof,
             block.hash,
         ));
-        if (Chain.verifyBlockChein(blocks, this.difficulty)) {
+        if (Chain.verifyBlockChain(blocks, this.difficulty)) {
             this.blocks = blocks;
+            return true;
         }
+
+        return false;
     }
 
-    static verifyBlockChein < T > (blocks: Block < T > [], difficulty: number) {
+    static verifyBlockChain < T > (blocks: Block < T > [], difficulty: number) {
         const first = blocks[0];
         if (!first || !first.equal(Block.generateGenesis())) {
             return false;

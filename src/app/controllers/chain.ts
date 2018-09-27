@@ -1,21 +1,21 @@
 import * as express from 'express';
 import { ChainNode } from '../../chain/chain-node';
 
-export class ChainMiddleware {
+export class ChainController {
     private readonly blockchain: ChainNode;
 
     constructor(blockchain: ChainNode) {
         this.blockchain = blockchain;
     }
 
-    getChain(req, res) {
+    get(req, res) {
         res.json({
             blocks: this.blockchain.chain.blocks
         });
     }
 
-    mineBlock(req, res) {
-        const block = this.blockchain.newBlock(req.body);
+    post(req, res) {
+        const block = this.blockchain.mine();
         res.json({ block });
     }
 }

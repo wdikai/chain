@@ -1,14 +1,14 @@
 import * as express from 'express';
 import { ChainNode } from '../../chain/chain-node';
 
-export class PearsMiddleware {
+export class PearsController {
     private readonly blockchain: ChainNode;
 
     constructor(blockchain: ChainNode) {
         this.blockchain = blockchain;
     }
 
-    getPears(req, res) {
+    get(req, res) {
         const pears = this.blockchain.node.sockets.map(socket => ({
             url: `${socket.remoteAddress}:${socket.remotePort}`,
             port: socket.remotePort,
@@ -19,7 +19,7 @@ export class PearsMiddleware {
         });
     }
 
-    addPear(req, res) {
+    post(req, res) {
         this.blockchain.addPear(req.body.port, req.body.host);
         res.json({
             pear: {

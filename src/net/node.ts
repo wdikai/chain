@@ -1,10 +1,6 @@
 import {createServer, createConnection, Socket, Server, NetConnectOpts, TcpNetConnectOpts} from 'net';
 import {EventEmitter} from 'events';
-
-export interface Message<T> {
-    type: string;
-    payload?: T;
-};
+import { Message } from './message';
 
 export class Node {
     port: string;
@@ -21,8 +17,8 @@ export class Node {
         this.messageHandler = new EventEmitter();
     }
 
-    conectTo(port, host = '127.0.0.1'): Node  {
-        console.log(`[${this.port}] Conect to ${host}:${port}`)
+    connectTo(port, host = '127.0.0.1'): Node  {
+        console.log(`[${this.port}] Connect to ${host}:${port}`)
         const socket = createConnection({ port, host });
         return this.addSocket(socket);
     }

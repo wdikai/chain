@@ -1,33 +1,34 @@
 import { Chain } from "./chain";
 import { Node } from "../net/node";
 import { Block } from "./block";
+import { Transaction } from "./transaction/transaction";
+import { Wallet } from "./wallet";
+import { TransactionInput } from "./transaction/transaction-input";
+import { TransactionOutput } from "./transaction/transaction-output";
+import { Exception } from "../app/exception";
 
-enum MessageType {
-    NewBlock = 'NewBlock',
-        QueryChain = 'QueryChain',
-        Chain = 'Chain'
+export interface ChainNodeOptions {
+    port?: string;
+    difficulty?: number;
+    wallet?: string;
 }
-
-export interface NodeOptions {
-    port ? : string;
-}
-
-export interface ChainOptions {
-    difficulty ? : number;
-}
-
 
 export class ChainNode {
-    chain: Chain < any > ;
+    tnxIds: Set<string> = new Set();
+    transactions: Transaction[];
+    chain: Chain<Transaction[]>;
     node: Node;
+    wallet: Wallet;
 
-    constructor(options: NodeOptions & ChainOptions) {
+    constructor(options: ChainNodeOptions) {
+        this.transactions = [];
         this.node = new Node(options.port);
         this.chain = new Chain(options.difficulty);
+        this.wallet = new Wallet(options.wallet, this.chain);
     }
 
-    addPear(port, host ? : string): ChainNode {
-        this.node.conectTo(port, host);
+    addPear(port, host?: string): ChainNode {
+        this.node.connectTo(port, host);
         return this;
     }
 
@@ -36,41 +37,57 @@ export class ChainNode {
         return this;
     }
 
-    newBlock(data: any, timestamp ? : number): Block < any > {
-        const payload = this.chain.addBlock(data, timestamp);
-        this.node.broadcast < any > ({
-            type: MessageType.NewBlock,
-            payload
-        });
+    addTransaction(transaction: Transaction): void {
+        if(!transaction.isValid) {
+            throw new Exception('Invalid transaction');
+        }
 
-        return payload;
+        if (!this.tnxIds.has(transaction.id)) {
+
+            this.tnxIds.add(transaction.id);
+            this.transactions.push(transaction);
+            this.node.broadcast({
+                type: MessageType.NewTransaction,
+                payload: transaction
+            });
+        }
+    }
+
+    mine(): Block<any> {
+        let transactions, block;
+        this.addTransaction(Transaction.createUnspentTransaction(this.wallet.id));
+        transactions = this.transactions;
+        this.transactions = [];
+
+        block = this.chain.addBlock(transactions);
+        this.wallet.analyzeBlock(block);
+        return block;
     }
 
     private init(): void {
-        console.log(`[${this.node.port}] Chani was running`)
-        this.node.messageHandler.on(MessageType.NewBlock, (message) => this.addBlock(message.payload));
+        console.log(`[${this.node.port}] Chain was running`)
+        this.node.messageHandler.on(MessageType.NewTransaction, (message) => this.handleNewTransaction(message.payload));
         this.node.messageHandler.on(MessageType.QueryChain, (message, socket) => this.sendChain(socket));
         this.node.messageHandler.on(MessageType.Chain, (message) => this.loadChain(message.payload));
         this.queryChain();
     }
 
-    private queryChain(): void  {
-        this.node.broadcast < any > ({
+    private queryChain(): void {
+        this.node.broadcast<any>({
             type: MessageType.QueryChain
         });
     }
 
-    private addBlock(block): void  {
-        if (!this.chain.isValid) {
-            return this.queryChain();
-        }
-
-        if (this.chain.canAdd(block)) {
-            this.newBlock(block.data, block.timestamp)
-        }
+    private handleNewTransaction(transaction: Transaction): void {
+        const tnx = new Transaction(transaction.id);
+        transaction.outputs.forEach(output => tnx.addOutput(output.walletId, output.amount, output.id));
+        transaction.inputs.forEach((input: TransactionInput) => tnx.addInput(
+            new TransactionOutput(input.output.walletId, input.output.amount, input.output.tnxId, input.output.id)
+        ));
+        this.addTransaction(tnx);
     }
 
-    private sendChain(socket): void  {
+    private sendChain(socket): void {
         if (!this.chain.isValid) {
             return this.queryChain();
         }
@@ -81,7 +98,8 @@ export class ChainNode {
         })
     }
 
-    private loadChain(blocks): void  {
-        this.chain.replaceChain(blocks);
+    private loadChain(blocks): void {
+        const chainChanged = this.chain.replaceChain(blocks);
+        if(chainChanged) this.wallet.analyzeAllChain();
     }
 }
