@@ -13,8 +13,8 @@ export class WalletController {
     get(req, res) {
         const wallet = this.blockchain.wallet;
         res.json({
-            outputs: wallet.tokens,
-            amount: wallet.amount
+            outputs: wallet.myTokens,
+            amount: wallet.myAmount
         });
     }
 }

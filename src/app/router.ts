@@ -29,7 +29,7 @@ export class Router {
     registerAction(middleware, context) {
         return (req, res, next) => {
             try {
-                middleware.apply(context, req, res, next)
+                middleware.call(context, req, res, next)
             } catch(error) {
                 return next(error)
             }

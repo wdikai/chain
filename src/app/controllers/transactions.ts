@@ -12,9 +12,10 @@ export class TransactionsController {
     post(req, res) {
         const wallet = this.blockchain.wallet;
         const transaction = new Transaction();
-        const amount = req.body.amount;
+        const amount = parseFloat(req.body.amount);
+        const from = req.body.from;
         const recipient = req.body.recipient;
-        const coins = wallet.getTokens(req.body.tokens);
+        const coins = wallet.getTokens(req.body.tokens, from);
         const cashBack = coins.amount - amount;
         if(cashBack < 0) {
             return res.status(402).json({error: true, message: 'Sum price of this tokents less then you want pay'})

@@ -9,8 +9,11 @@ export class Wallet {
     id: string;
     chain: Chain<Transaction[]>;
 
-    amount: number;
-    tokens: TransactionOutput[];
+    totalAmount: number;
+    allTokens: TransactionOutput[];
+
+    myAmount: number;
+    myTokens: TransactionOutput[];
 
     constructor(wallet: string, chain: Chain<Transaction[]>) {
         this.id = wallet;
@@ -19,19 +22,42 @@ export class Wallet {
     }
 
     resetValet(): void {
-        this.tokens = [];
-        this.calculateAmount()
+        this.allTokens = [];
+        this.myTokens = [];
+
+        this.totalAmount = TokenUtils.calculateAmount(this.allTokens);
+        this.myAmount = TokenUtils.calculateAmount(this.myTokens);
     }
 
-    calculateAmount(): number {
-        return this.amount = TokenUtils.calculateAmount(this.tokens);
+    getTokensByWallet(walletId?: string): any {
+        let tokens = this.allTokens;
+
+        if (walletId === this.id) {
+            return {
+                tokens: this.myTokens,
+                amount: this.myAmount
+            };
+        }
+
+        if (walletId) {
+            tokens = tokens.filter(token => token.walletId === walletId);
+        }
+
+        return {
+            tokens,
+            amount: TokenUtils.calculateAmount(tokens)
+        };
     }
 
-    getTokens(outputIds: string[]) {
+    getTokens(outputIds: string[], walletId?: string) {
         const tokens = outputIds.map(outputId => {
-            const output = this.tokens.find(output => output.id === outputId);
-            if(!output) {
+            const output = this.allTokens.find(output => output.id === outputId);
+            if (!output) {
                 throw new Exception('Token not found in your wallet');
+            }
+
+            if (walletId && output.walletId !== walletId) {
+                throw new Exception('Token from another wallet');
             }
 
             return output;
@@ -44,38 +70,42 @@ export class Wallet {
     }
 
     analyzeAllChain(): void {
-        if (this.chain.isValid) {
+        if (!this.chain.isValid) {
             this.resetValet();
             return;
         }
 
         this.chain.blocks.forEach(block => this.analyzeBlock(block));
-        this.calculateAmount();
+        this.totalAmount = TokenUtils.calculateAmount(this.allTokens);
+        this.myAmount = TokenUtils.calculateAmount(this.myTokens);
     }
 
     analyzeBlock(block) {
+        if(!block.data) return;
+        
         block.data.forEach((tnx: Transaction) => {
-            tnx.inputs.forEach((input: TransactionInput) => {
-                if (input.output.walletId === this.id) {
-                    this.releaseOutput(input.output);
-                }
-            });
-
-            tnx.outputs.forEach((output: TransactionOutput) => {
-                if (output.walletId === this.id) {
-                    this.addOutput(output);
-                }
-            });
+            tnx.inputs.forEach((input: TransactionInput) => this.releaseOutput(input.output));
+            tnx.outputs.forEach((output: TransactionOutput) => this.addOutput(output));
         });
     }
 
     private addOutput(output: TransactionOutput) {
-        this.tokens.push(output);
-        this.amount += output.amount;
+        this.allTokens.push(output);
+        this.totalAmount += output.amount;
+
+        if (output.walletId === this.id) {
+            this.myTokens.push(output);
+            this.myAmount += output.amount;
+        }
     }
 
     private releaseOutput(output: TransactionOutput) {
-        this.tokens = this.tokens.filter(free => free.id !== output.id);
-        this.amount -= output.amount;
+        this.allTokens = this.allTokens.filter(free => free.id !== output.id);
+        this.totalAmount -= output.amount;
+
+        if (output.walletId === this.id) {
+            this.myTokens = this.myTokens.filter(free => free.id !== output.id);
+            this.myAmount -= output.amount;
+        }
     }
 }

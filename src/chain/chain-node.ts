@@ -6,6 +6,7 @@ import { Wallet } from "./wallet";
 import { TransactionInput } from "./transaction/transaction-input";
 import { TransactionOutput } from "./transaction/transaction-output";
 import { Exception } from "../app/exception";
+import { MessageType } from './message-type';
 
 export interface ChainNodeOptions {
     port?: string;
@@ -19,6 +20,7 @@ export class ChainNode {
     chain: Chain<Transaction[]>;
     node: Node;
     wallet: Wallet;
+    test: MessageType;
 
     constructor(options: ChainNodeOptions) {
         this.transactions = [];
@@ -43,7 +45,6 @@ export class ChainNode {
         }
 
         if (!this.tnxIds.has(transaction.id)) {
-
             this.tnxIds.add(transaction.id);
             this.transactions.push(transaction);
             this.node.broadcast({
